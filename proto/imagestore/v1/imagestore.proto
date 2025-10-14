@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package imagestore.v1;
+
+option go_package = "github.com/lautaroblasco23/imagestore/proto/imagestore/v1;imagestorev1";
+
+import "google/protobuf/timestamp.proto";
+
+service ImageService {
+  rpc UploadImage(stream UploadImageRequest) returns (UploadImageResponse);
+  rpc GetImageMetadata(GetImageMetadataRequest) returns (ImageMetadata);
+  rpc ListImages(ListImagesRequest) returns (ListImagesResponse);
+  rpc DeleteImage(DeleteImageRequest) returns (DeleteImageResponse);
+  rpc GetImageURL(GetImageURLRequest) returns (GetImageURLResponse);
+}
+
+message UploadImageRequest {
+  oneof data {
+    ImageMetadataInput metadata = 1;
+    bytes chunk = 2;
+  }
+}
+
+message ImageMetadataInput {
+  string user_id = 1;
+  string filename = 2;
+  string content_type = 3;
+}
+
+message UploadImageResponse {
+  string image_id = 1;
+  string url = 2;
+  string thumbnail_url = 3;
+  int64 size_bytes = 4;
+}
+
+message GetImageMetadataRequest {
+  string image_id = 1;
+}
+
+message ImageMetadata {
+  string image_id = 1;
+  string user_id = 2;
+  string filename = 3;
+  string content_type = 4;
+  int64 size_bytes = 5;
+  int32 width = 6;
+  int32 height = 7;
+  google.protobuf.Timestamp uploaded_at = 8;
+  string url = 9;
+  string thumbnail_url = 10;
+}
+
+message ListImagesRequest {
+  string user_id = 1;
+  int32 page_size = 2;
+  string page_token = 3;
+}
+
+message ListImagesResponse {
+  repeated ImageMetadata images = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;
+}
+
+message DeleteImageRequest {
+  string image_id = 1;
+  string user_id = 2;
+}
+
+message DeleteImageResponse {
+  bool success = 1;
+}
+
+message GetImageURLRequest {
+  string image_id = 1;
+  bool thumbnail = 2;
+}
+
+message GetImageURLResponse {
+  string url = 1;
+}

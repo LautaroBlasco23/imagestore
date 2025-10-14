@@ -1,0 +1,12 @@
+services:
+  imagestore:
+    build: .
+    ports:
+      - "50051:50051"
+      - "8087:8087"
+    volumes:
+      - ./images:/root/images
+      - ./imagestore.db:/root/imagestore.db
+    restart: unless-stopped
+    environment:
+      - TZ=UTC
