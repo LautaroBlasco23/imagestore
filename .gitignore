@@ -1,0 +1,43 @@
+# Binaries
+/bin/
+/imagestore
+
+# Build artifacts
+*.exe
+*.out
+*.test
+
+# Databases and local storage
+*.db
+*.sqlite
+
+# Images (if generated or temporary)
+images/originals/
+images/thumbnails/
+
+# Logs and temporary files
+*.log
+tmp/
+*.tmp
+
+# Environment and configuration
+.env
+.env.*
+!env.example
+
+# Dependency directories
+vendor/
+
+# Docker
+**/docker-compose.override.yml
+**/Dockerfile.*
+**/docker/*.env
+
+# IDE / Editor configs
+.vscode/
+.idea/
+*.swp
+
+# OS-specific files
+.DS_Store
+Thumbs.db
