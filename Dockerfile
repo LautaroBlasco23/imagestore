@@ -29,6 +29,6 @@ COPY --from=builder /app/imagestore .
 
 RUN mkdir -p images/originals images/thumbnails
 
-EXPOSE 50051 8080
+EXPOSE 50051 8087
 
 CMD ["./imagestore"]
