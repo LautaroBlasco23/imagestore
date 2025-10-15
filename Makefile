@@ -1,4 +1,17 @@
-.PHONY: proto build run clean test
+.DEFAULT_GOAL := help
+
+.PHONY: help proto build run dev clean test deps install-tools
+
+help:
+	@echo "Available commands:"
+	@echo "  make proto          - Generate protobuf code"
+	@echo "  make build          - Build the application"
+	@echo "  make run            - Build and run the application"
+	@echo "  make dev            - Run in development mode (no build)"
+	@echo "  make clean          - Remove build artifacts and data"
+	@echo "  make test           - Run tests"
+	@echo "  make deps           - Download and tidy dependencies"
+	@echo "  make install-tools  - Install protoc plugins"
 
 proto:
 	protoc --go_out=. --go_opt=paths=source_relative \
@@ -26,3 +39,6 @@ deps:
 install-tools:
 	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+dev:
+	go run ./cmd/server
