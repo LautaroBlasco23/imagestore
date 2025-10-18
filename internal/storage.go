@@ -51,15 +51,13 @@ func (s *Storage) SaveImage(userID, filename string, reader io.Reader) (imageID,
 	width = int32(dx)
 	height = int32(dy)
 
+	ext := s.getSafeExtension(filename, format)
+
 	originalDir := filepath.Join(s.baseDir, "originals", userID)
 	if err := os.MkdirAll(originalDir, 0o750); err != nil {
 		return "", "", "", 0, 0, 0, err
 	}
 
-	ext := filepath.Ext(filename)
-	if ext == "" {
-		ext = "." + format
-	}
 	originalFullPath := filepath.Join(originalDir, imageID+ext)
 	if err := s.validatePath(originalFullPath); err != nil {
 		return "", "", "", 0, 0, 0, err
@@ -85,6 +83,7 @@ func (s *Storage) SaveImage(userID, filename string, reader io.Reader) (imageID,
 		return "", "", "", 0, 0, 0, err
 	}
 
+	// #nosec G304: path is validated via validatePath()
 	thumbFile, err := os.Create(thumbnailFullPath)
 	if err != nil {
 		if removeErr := os.Remove(originalFullPath); removeErr != nil {
@@ -142,7 +141,6 @@ func (s *Storage) validatePath(filePath string) error {
 		return fmt.Errorf("path traversal detected: %s", filePath)
 	}
 
-	// Ensure next character is a separator or we're at the exact directory
 	if len(filePathClean) > len(baseDirClean) && filePathClean[len(baseDirClean)] != filepath.Separator {
 		return fmt.Errorf("path traversal detected: %s", filePath)
 	}
@@ -151,4 +149,19 @@ func (s *Storage) validatePath(filePath string) error {
 
 func (s *Storage) GetImagePath(imagePath string) string {
 	return filepath.Join(s.baseDir, imagePath)
+}
+
+func (s *Storage) getSafeExtension(filename, format string) string {
+	if filename == "" {
+		return "." + format
+	}
+	ext := filepath.Ext(filename)
+	if ext == "" {
+		return "." + format
+	}
+	clean := filepath.Clean(ext)
+	if clean != ext || len(clean) > 5 || !strings.HasPrefix(clean, ".") {
+		return "." + format
+	}
+	return clean
 }
