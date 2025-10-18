@@ -61,6 +61,9 @@ func (s *Storage) SaveImage(userID, filename string, reader io.Reader) (imageID,
 		ext = "." + format
 	}
 	originalFullPath := filepath.Join(originalDir, imageID+ext)
+	if err := s.validatePath(originalFullPath); err != nil {
+		return "", "", "", 0, 0, 0, err
+	}
 	if err := os.WriteFile(originalFullPath, data, 0o600); err != nil {
 		return "", "", "", 0, 0, 0, err
 	}
@@ -75,6 +78,13 @@ func (s *Storage) SaveImage(userID, filename string, reader io.Reader) (imageID,
 
 	thumbnail := resize.Thumbnail(s.thumbnailSize, s.thumbnailSize, img, resize.Lanczos3)
 	thumbnailFullPath := filepath.Join(thumbnailDir, imageID+"_thumb.webp")
+	if err := s.validatePath(thumbnailFullPath); err != nil {
+		if removeErr := os.Remove(originalFullPath); removeErr != nil {
+			log.Printf("failed to remove original file on cleanup: %v", removeErr)
+		}
+		return "", "", "", 0, 0, 0, err
+	}
+
 	thumbFile, err := os.Create(thumbnailFullPath)
 	if err != nil {
 		if removeErr := os.Remove(originalFullPath); removeErr != nil {
@@ -129,6 +139,11 @@ func (s *Storage) validatePath(filePath string) error {
 	baseDirClean := filepath.Clean(s.baseDir)
 	filePathClean := filepath.Clean(filePath)
 	if !strings.HasPrefix(filePathClean, baseDirClean) {
+		return fmt.Errorf("path traversal detected: %s", filePath)
+	}
+
+	// Ensure next character is a separator or we're at the exact directory
+	if len(filePathClean) > len(baseDirClean) && filePathClean[len(baseDirClean)] != filepath.Separator {
 		return fmt.Errorf("path traversal detected: %s", filePath)
 	}
 	return nil

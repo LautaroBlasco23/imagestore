@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -139,10 +138,6 @@ func (h *ImageHandler) ListImages(ctx context.Context, req *pb.ListImagesRequest
 		return nil, err
 	}
 
-	if totalCount > math.MaxInt32 {
-		return nil, fmt.Errorf("result count overflow: %d", totalCount)
-	}
-
 	pbImages := make([]*pb.ImageMetadata, len(images))
 	for i, img := range images {
 		pbImages[i] = &pb.ImageMetadata{
@@ -159,7 +154,7 @@ func (h *ImageHandler) ListImages(ctx context.Context, req *pb.ListImagesRequest
 		}
 	}
 
-	var nextPageToken string
+	nextPageToken := ""
 	if offset+pageSize < totalCount {
 		nextPageToken = strconv.Itoa(offset + pageSize)
 	}
@@ -167,7 +162,7 @@ func (h *ImageHandler) ListImages(ctx context.Context, req *pb.ListImagesRequest
 	return &pb.ListImagesResponse{
 		Images:        pbImages,
 		NextPageToken: nextPageToken,
-		TotalCount:    int32(totalCount),
+		TotalCount:    int64(totalCount),
 	}, nil
 }
 
@@ -236,7 +231,7 @@ func (h *ImageHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := os.ReadFile(filePath)
+	data, err := os.ReadFile(filePath) // nolint:gosec
 	if err != nil {
 		http.Error(w, "failed to read image", http.StatusInternalServerError)
 		return
