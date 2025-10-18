@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -100,7 +101,12 @@ func (db *DB) ListImages(ctx context.Context, userID string, limit, offset int) 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		err := rows.Close()
+		if err != nil {
+			log.Printf("error closing database: %v", err)
+		}
+	}()
 
 	var images []*Image
 	for rows.Next() {
