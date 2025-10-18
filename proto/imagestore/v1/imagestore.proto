@@ -60,7 +60,7 @@ message ListImagesRequest {
 message ListImagesResponse {
   repeated ImageMetadata images = 1;
   string next_page_token = 2;
-  int32 total_count = 3;
+  int64 total_count = 3;
 }
 
 message DeleteImageRequest {
