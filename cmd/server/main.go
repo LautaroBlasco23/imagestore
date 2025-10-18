@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	internal "github.com/lautaroblasco23/imagestore/internal"
 	pb "github.com/lautaroblasco23/imagestore/proto/imagestore/v1"
@@ -23,13 +24,13 @@ const (
 )
 
 func main() {
-	if err := os.MkdirAll(imagesDir, 0o755); err != nil {
-		log.Fatalf("Failed to create images directory: %v", err)
+	if err := os.MkdirAll(imagesDir, 0o750); err != nil {
+		log.Fatalf("failed to create images directory: %v", err)
 	}
 
 	db, err := internal.NewDB(dbPath)
 	if err != nil {
-		log.Fatalf("Failed to create database: %v", err)
+		log.Fatalf("failed to create database: %v", err)
 	}
 	defer func() {
 		if err := db.Close(); err != nil {
@@ -39,7 +40,6 @@ func main() {
 
 	storage := internal.NewStorage(imagesDir)
 	handler := internal.NewImageHandler(db, storage, baseURL)
-
 	grpcServer := grpc.NewServer()
 	pb.RegisterImageServiceServer(grpcServer, handler)
 	reflection.Register(grpcServer)
@@ -49,20 +49,27 @@ func main() {
 	httpMux.HandleFunc("/health", handler.HealthCheck)
 
 	go func() {
-		listener, err := net.Listen("tcp", grpcPort)
+		listener, err := net.Listen("tcp", "127.0.0.1"+grpcPort)
 		if err != nil {
-			log.Fatalf("Failed to listen on %s: %v", grpcPort, err)
+			log.Fatalf("failed to listen on %s: %v", grpcPort, err)
 		}
 		log.Printf("gRPC server listening on %s", grpcPort)
 		if err := grpcServer.Serve(listener); err != nil {
-			log.Fatalf("Failed to serve gRPC: %v", err)
+			log.Fatalf("failed to serve gRPC: %v", err)
 		}
 	}()
 
 	go func() {
+		httpServer := &http.Server{
+			Addr:         httpPort,
+			Handler:      httpMux,
+			ReadTimeout:  15 * time.Second,
+			WriteTimeout: 15 * time.Second,
+			IdleTimeout:  60 * time.Second,
+		}
 		log.Printf("HTTP server listening on %s", httpPort)
-		if err := http.ListenAndServe(httpPort, httpMux); err != nil {
-			log.Fatalf("Failed to serve HTTP: %v", err)
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("failed to serve HTTP: %v", err)
 		}
 	}()
 
@@ -70,7 +77,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Shutting down servers...")
+	log.Println("shutting down servers...")
 	grpcServer.GracefulStop()
-	log.Println("Servers stopped")
+	log.Println("servers stopped")
 }

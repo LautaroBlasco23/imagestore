@@ -5,8 +5,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
+	"math"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -78,7 +81,9 @@ func (h *ImageHandler) UploadImage(stream pb.ImageService_UploadImageServer) err
 	}
 
 	if err := h.db.SaveImage(stream.Context(), img); err != nil {
-		h.storage.DeleteImage(originalPath, thumbnailPath)
+		if err := h.storage.DeleteImage(originalPath, thumbnailPath); err != nil {
+			log.Printf("failed to delete image on rollback: %v", err)
+		}
 		return err
 	}
 
@@ -134,6 +139,10 @@ func (h *ImageHandler) ListImages(ctx context.Context, req *pb.ListImagesRequest
 		return nil, err
 	}
 
+	if totalCount > math.MaxInt32 {
+		return nil, fmt.Errorf("result count overflow: %d", totalCount)
+	}
+
 	pbImages := make([]*pb.ImageMetadata, len(images))
 	for i, img := range images {
 		pbImages[i] = &pb.ImageMetadata{
@@ -172,7 +181,9 @@ func (h *ImageHandler) DeleteImage(ctx context.Context, req *pb.DeleteImageReque
 		return nil, fmt.Errorf("unauthorized")
 	}
 
-	h.storage.DeleteImage(img.OriginalPath, img.ThumbnailPath)
+	if err := h.storage.DeleteImage(img.OriginalPath, img.ThumbnailPath); err != nil {
+		log.Printf("failed to delete image files: %v", err)
+	}
 
 	if err := h.db.DeleteImage(ctx, req.ImageId); err != nil {
 		return nil, err
@@ -220,6 +231,11 @@ func (h *ImageHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		contentType = img.ContentType
 	}
 
+	if err := validateImagePath(filePath); err != nil {
+		http.Error(w, "invalid file path", http.StatusBadRequest)
+		return
+	}
+
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		http.Error(w, "failed to read image", http.StatusInternalServerError)
@@ -229,10 +245,21 @@ func (h *ImageHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Cache-Control", "public, max-age=31536000")
 	w.WriteHeader(http.StatusOK)
-	w.Write(data)
+	if _, err := w.Write(data); err != nil {
+		log.Printf("failed to write response: %v", err)
+	}
 }
 
 func (h *ImageHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "OK")
+	if _, err := fmt.Fprintf(w, "OK"); err != nil {
+		log.Printf("failed to write health check response: %v", err)
+	}
+}
+
+func validateImagePath(filePath string) error {
+	if !strings.HasPrefix(filepath.Clean(filePath), "./images") {
+		return fmt.Errorf("path outside images directory")
+	}
+	return nil
 }
