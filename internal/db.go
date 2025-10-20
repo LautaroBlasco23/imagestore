@@ -33,7 +33,7 @@ func NewDB(dbPath string) (*DB, error) {
 }
 
 func (db *DB) migrate() error {
-	query := `
+	createTable := `
 	CREATE TABLE IF NOT EXISTS images (
 		id TEXT PRIMARY KEY,
 		user_id TEXT NOT NULL,
@@ -44,12 +44,19 @@ func (db *DB) migrate() error {
 		height INTEGER NOT NULL,
 		uploaded_at DATETIME NOT NULL,
 		original_path TEXT NOT NULL,
-		thumbnail_path TEXT NOT NULL,
-		INDEX idx_user_id (user_id)
+		thumbnail_path TEXT NOT NULL
 	);
 	`
-	_, err := db.conn.Exec(query)
-	return err
+	if _, err := db.conn.Exec(createTable); err != nil {
+		return err
+	}
+
+	createIndex := `CREATE INDEX IF NOT EXISTS idx_user_id ON images(user_id);`
+	if _, err := db.conn.Exec(createIndex); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (db *DB) SaveImage(ctx context.Context, img *Image) error {
@@ -72,13 +79,11 @@ func (db *DB) GetImage(ctx context.Context, imageID string) (*Image, error) {
 	`
 	var img Image
 	var uploadedAt string
-
 	err := db.conn.QueryRowContext(ctx, query, imageID).Scan(
 		&img.ID, &img.UserID, &img.Filename, &img.ContentType,
 		&img.SizeBytes, &img.Width, &img.Height, &uploadedAt,
 		&img.OriginalPath, &img.ThumbnailPath,
 	)
-
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("image not found")
 	}
@@ -102,28 +107,28 @@ func (db *DB) ListImages(ctx context.Context, userID string, limit, offset int) 
 		return nil, err
 	}
 	defer func() {
-		err := rows.Close()
-		if err != nil {
-			log.Printf("error closing database: %v", err)
+		if err := rows.Close(); err != nil {
+			log.Printf("error closing rows: %v", err)
 		}
 	}()
 
-	var images []*Image
+	images := make([]*Image, 0)
 	for rows.Next() {
 		var img Image
 		var uploadedAt string
-
-		err := rows.Scan(
+		if err := rows.Scan(
 			&img.ID, &img.UserID, &img.Filename, &img.ContentType,
 			&img.SizeBytes, &img.Width, &img.Height, &uploadedAt,
 			&img.OriginalPath, &img.ThumbnailPath,
-		)
-		if err != nil {
+		); err != nil {
 			return nil, err
 		}
-
 		img.UploadedAt, _ = time.Parse("2006-01-02 15:04:05", uploadedAt)
 		images = append(images, &img)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	return images, nil
