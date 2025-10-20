@@ -202,7 +202,7 @@ func (h *ImageHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	imageID := strings.TrimPrefix(r.URL.Path, "/images/")
-	if imageID == "" {
+	if imageID == "" || imageID == r.URL.Path {
 		http.Error(w, "image ID required", http.StatusBadRequest)
 		return
 	}
@@ -219,20 +219,24 @@ func (h *ImageHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var contentType string
 
 	if thumbnail {
-		filePath = h.storage.GetImagePath(img.ThumbnailPath)
+		filePath = img.ThumbnailPath
 		contentType = "image/webp"
 	} else {
-		filePath = h.storage.GetImagePath(img.OriginalPath)
+		filePath = img.OriginalPath
 		contentType = img.ContentType
 	}
 
-	if err := validateImagePath(filePath); err != nil {
+	fullPath := h.storage.GetImagePath(filePath)
+
+	if err := validateImagePath(fullPath); err != nil {
+		log.Printf("path validation failed for %s: %v", fullPath, err)
 		http.Error(w, "invalid file path", http.StatusBadRequest)
 		return
 	}
 
-	data, err := os.ReadFile(filePath) // nolint:gosec
+	data, err := os.ReadFile(fullPath)
 	if err != nil {
+		log.Printf("failed to read file %s: %v", fullPath, err)
 		http.Error(w, "failed to read image", http.StatusInternalServerError)
 		return
 	}
@@ -253,7 +257,18 @@ func (h *ImageHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func validateImagePath(filePath string) error {
-	if !strings.HasPrefix(filepath.Clean(filePath), "./images") {
+	cleanPath := filepath.Clean(filePath)
+	absPath, err := filepath.Abs(cleanPath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve absolute path: %w", err)
+	}
+
+	imagesDir, err := filepath.Abs("./images")
+	if err != nil {
+		return fmt.Errorf("failed to resolve images directory: %w", err)
+	}
+
+	if !strings.HasPrefix(absPath, imagesDir) {
 		return fmt.Errorf("path outside images directory")
 	}
 	return nil
