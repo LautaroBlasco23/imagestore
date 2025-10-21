@@ -234,6 +234,7 @@ func (h *ImageHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// #nosec G304 -- path is validated by validateImagePath
 	data, err := os.ReadFile(fullPath)
 	if err != nil {
 		log.Printf("failed to read file %s: %v", fullPath, err)
