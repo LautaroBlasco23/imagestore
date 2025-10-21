@@ -228,7 +228,7 @@ func (h *ImageHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	fullPath := h.storage.GetImagePath(filePath)
 
-	if err := validateImagePath(fullPath); err != nil {
+	if err := validateImagePath(fullPath, "./images"); err != nil {
 		log.Printf("path validation failed for %s: %v", fullPath, err)
 		http.Error(w, "invalid file path", http.StatusBadRequest)
 		return
