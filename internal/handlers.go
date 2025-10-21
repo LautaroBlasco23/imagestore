@@ -256,20 +256,26 @@ func (h *ImageHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func validateImagePath(filePath string) error {
+func validateImagePath(filePath, imagesDir string) error {
 	cleanPath := filepath.Clean(filePath)
 	absPath, err := filepath.Abs(cleanPath)
 	if err != nil {
 		return fmt.Errorf("failed to resolve absolute path: %w", err)
 	}
 
-	imagesDir, err := filepath.Abs("./images")
+	absImagesDir, err := filepath.Abs(imagesDir)
 	if err != nil {
 		return fmt.Errorf("failed to resolve images directory: %w", err)
 	}
 
-	if !strings.HasPrefix(absPath, imagesDir) {
+	relPath, err := filepath.Rel(absImagesDir, absPath)
+	if err != nil {
+		return fmt.Errorf("failed to get relative path: %w", err)
+	}
+
+	if strings.HasPrefix(relPath, "..") || filepath.IsAbs(relPath) {
 		return fmt.Errorf("path outside images directory")
 	}
+
 	return nil
 }
