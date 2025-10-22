@@ -6,7 +6,10 @@ services:
       - "8087:8087"
     volumes:
       - ./images:/root/images
-      - ./imagestore.db:/root/imagestore.db
+      - imagestore_data:/root
     restart: unless-stopped
     environment:
       - TZ=UTC
+
+volumes:
+  imagestore_data:
