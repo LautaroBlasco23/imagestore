@@ -58,16 +58,6 @@ make prod-down
 
 Images persist in the `imagestore_data` Docker volume, so they survive restarts.
 
-## Environment Variables
-
-The service uses the following environment variables (configured in `docker-compose.yml` for production):
-
-- `GRPC_PORT` - gRPC server port (default: `50051`)
-- `HTTP_PORT` - HTTP server port (default: `8087`)
-- `DB_PATH` - SQLite database file path (default: `./data/imagestore.db`)
-- `IMAGES_DIR` - Base directory for image storage (default: `./images`)
-- `BASE_URL` - Base URL for constructing image URLs (default: `http://localhost:8087`)
-
 ## Storage Structure
 
 Images are organized in a directory hierarchy:
