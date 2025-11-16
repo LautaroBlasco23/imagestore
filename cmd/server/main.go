@@ -40,6 +40,7 @@ func main() {
 
 	storage := internal.NewStorage(imagesDir)
 	handler := internal.NewImageHandler(db, storage, baseURL)
+
 	grpcServer := grpc.NewServer()
 	pb.RegisterImageServiceServer(grpcServer, handler)
 	reflection.Register(grpcServer)
@@ -49,7 +50,7 @@ func main() {
 	httpMux.HandleFunc("/health", handler.HealthCheck)
 
 	go func() {
-		listener, err := net.Listen("tcp", "127.0.0.1"+grpcPort)
+		listener, err := net.Listen("tcp", grpcPort)
 		if err != nil {
 			log.Fatalf("failed to listen on %s: %v", grpcPort, err)
 		}
