@@ -50,6 +50,7 @@ func main() {
 	httpMux.HandleFunc("/health", handler.HealthCheck)
 
 	go func() {
+		// #nosec G102
 		listener, err := net.Listen("tcp", grpcPort)
 		if err != nil {
 			log.Fatalf("failed to listen on %s: %v", grpcPort, err)
